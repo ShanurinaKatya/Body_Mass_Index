@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ИМТ Калькулятор</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles/styles.css">
+</head>
+<body style="user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
+    <header class="page-header">
+        <h1 class="page-title">ИМТ Калькулятор</h1>
+    </header>
+
+    <div class="feed-container">
+        <video class="feed-video" autoplay muted loop playsinline>
+            <source src="{{ .minio }}/{{ .service.VideoKey }}" type="video/mp4">
+        </video>
+
+        <div class="feed-overlay">
+            <div class="feed-sidebar">
+                <!-- Вес -->
+                <div class="feed-sidebar-item">
+                    <div class="feed-sidebar-icon">
+                        <img src="{{ .minio }}/free-icon-weight-847345.png" alt="Вес" style="width:20px;height:20px;object-fit:contain;">
+                    </div>
+                    <span class="feed-sidebar-label">{{ .service.Weight }} кг</span>
+                </div>
+
+                <!-- Возраст -->
+                <div class="feed-sidebar-item">
+                    <div class="feed-sidebar-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="12" cy="8" r="4" stroke-width="1.5" fill="none"/>
+                            <path d="M4 20C4 16.6863 7.58172 14 12 14C16.4183 14 20 16.6863 20 20" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+                        </svg>
+                    </div>
+                    <span class="feed-sidebar-label">{{ .service.Age }} лет</span>
+                </div>
+
+                <!-- Лайк -->
+                <div class="feed-sidebar-item">
+                    <div class="feed-sidebar-icon feed-sidebar-icon--like">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 21.35L10.55 20.03C5.4 15.36 2 12.28 2 8.5C2 5.42 4.42 3 7.5 3C9.24 3 10.91 3.81 12 5.09C13.09 3.81 14.76 3 16.5 3C19.58 3 22 5.42 22 8.5C22 12.28 18.6 15.36 13.45 20.04L12 21.35Z" stroke-width="1.5" fill="none"/>
+                        </svg>
+                    </div>
+                    <span class="feed-sidebar-label">{{ .likes }}</span>
+                </div>
+
+                <!-- Далее -->
+                <a href="/feed?id={{ .service.ID }}&next=true" class="feed-sidebar-item">
+                    <div class="feed-sidebar-icon feed-sidebar-icon--next">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <span class="feed-sidebar-label">Далее</span>
+                </a>
+            </div>
+
+            <div class="feed-bottom">
+                <h1 class="feed-title">{{ .service.Title }}</h1>
+                <p class="feed-description" id="feed-desc">{{ .service.Description }}</p>
+                <a href="#" class="feed-more-btn" id="feed-more-btn" onclick="toggleDesc(event)">ещё</a>
+            </div>
+        </div>
+    </div>
+
+    <nav class="tab-bar">
+        <a href="/" class="tab-item active">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V9.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M9 21V14H15V21" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+            <span>Лента</span>
+        </a>
+        <a href="/add" class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M12 8V16M8 12H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>Добавить</span>
+        </a>
+        <a href="/cards" class="tab-item">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+            </svg>
+            <span>Плитка</span>
+        </a>
+    </nav>
+    <script>
+        function toggleDesc(e) {
+            e.preventDefault();
+            var desc = document.getElementById('feed-desc');
+            var btn = document.getElementById('feed-more-btn');
+            if (desc.classList.contains('feed-description--expanded')) {
+                desc.classList.remove('feed-description--expanded');
+                btn.textContent = 'ещё';
+            } else {
+                desc.classList.add('feed-description--expanded');
+                btn.textContent = 'меньше';
+            }
+        }
+    </script>
+</body>
+</html>
