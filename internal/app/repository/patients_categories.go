@@ -117,7 +117,7 @@ func (r *Repository) GetServices() ([]Service, error) {
 
 func (r *Repository) GetServiceByID(id int) (Service, error) {
 	for _, s := range r.services {
-		if s.ID == id && s.Status != "deleted" {
+		if s.ID == id && s.Status == "published" {
 			return s, nil
 		}
 	}

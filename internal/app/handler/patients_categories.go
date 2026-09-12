@@ -80,9 +80,15 @@ func (h *Handler) CardsHandler(ctx *gin.Context) {
 		services = []repository.Service{}
 	}
 
+	likes := make(map[int]int, len(services))
+	for _, s := range services {
+		likes[s.ID] = len(s.Likes)
+	}
+
 	ctx.HTML(http.StatusOK, "cards.html", gin.H{
 		"services": services,
 		"minio":    h.MinioURL,
 		"age":      ageStr,
+		"likes":    likes,
 	})
 }

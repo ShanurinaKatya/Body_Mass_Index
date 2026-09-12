@@ -2,6 +2,7 @@ package api
 
 import (
 	"log"
+	"net/http"
 	"patients_categories/internal/app/handler"
 	"patients_categories/internal/app/repository"
 
@@ -23,7 +24,9 @@ func StartServer() {
 	r.LoadHTMLGlob("templates/*")
 	r.Static("/static", "./resources")
 
-	r.GET("/", h.FeedHandler)
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusFound, "/feed")
+	})
 	r.GET("/feed", h.FeedHandler)
 	r.GET("/add", h.AddHandler)
 	r.GET("/cards", h.CardsHandler)

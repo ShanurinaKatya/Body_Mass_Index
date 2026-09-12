@@ -20,6 +20,7 @@
         </video>
 
         <div class="feed-overlay">
+            <input type="checkbox" id="desc-toggle" class="feed-desc-toggle" hidden>
             <div class="feed-sidebar">
                 <!-- Вес -->
                 <div class="feed-sidebar-item">
@@ -63,14 +64,15 @@
 
             <div class="feed-bottom">
                 <h1 class="feed-title">{{ .service.Title }}</h1>
-                <p class="feed-description" id="feed-desc">{{ .service.Description }}</p>
-                <a href="#" class="feed-more-btn" id="feed-more-btn" onclick="toggleDesc(event)">ещё</a>
+                <p class="feed-description">{{ .service.Description }}</p>
+                <label for="desc-toggle" class="feed-more-btn feed-more-open">ещё</label>
+                <label for="desc-toggle" class="feed-more-btn feed-more-close">меньше</label>
             </div>
         </div>
     </div>
 
     <nav class="tab-bar">
-        <a href="/" class="tab-item active">
+        <a href="/feed" class="tab-item active">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M3 9.5L12 3L21 9.5V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V9.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
                 <path d="M9 21V14H15V21" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
@@ -94,19 +96,5 @@
             <span>Плитка</span>
         </a>
     </nav>
-    <script>
-        function toggleDesc(e) {
-            e.preventDefault();
-            var desc = document.getElementById('feed-desc');
-            var btn = document.getElementById('feed-more-btn');
-            if (desc.classList.contains('feed-description--expanded')) {
-                desc.classList.remove('feed-description--expanded');
-                btn.textContent = 'ещё';
-            } else {
-                desc.classList.add('feed-description--expanded');
-                btn.textContent = 'меньше';
-            }
-        }
-    </script>
 </body>
 </html>
