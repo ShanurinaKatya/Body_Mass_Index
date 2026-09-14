@@ -31,10 +31,10 @@
         <div class="cards-grid">
             {{ range .services }}
             <div class="card">
-                <a href="/feed?id={{ .ID }}">
-                    <img class="card-image" src="{{ $.minio }}/{{ .ImageKey }}" alt="{{ .Title }}">
+                <a class="card-link" href="/feed?id={{ .ID }}">
+                    <img class="card-image" src="{{ if .ImageURL }}{{ .ImageURL }}{{ else }}{{ $.defImage }}{{ end }}" alt="{{ .Name }}">
                     <div class="card-content">
-                        <h3 class="card-title">{{ .Title }}</h3>
+                        <h3 class="card-title">{{ .Name }}</h3>
                         <div class="card-row">
                             <div class="card-likes">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

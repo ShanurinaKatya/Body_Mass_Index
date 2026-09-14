@@ -14,41 +14,32 @@
         <h1 class="page-title">Новый расчёт ИМТ</h1>
     </header>
 
-    <div class="add-container">
-        <div class="add-placeholders">
-            <label class="add-placeholder">
-                <span class="add-placeholder-text">Обложка</span>
-                <img class="add-preview" alt="Превью обложки">
-                <input type="file" class="add-file-input" accept="image/*" hidden>
-            </label>
-            <label class="add-placeholder">
-                <span class="add-placeholder-text">Видео</span>
-                <video class="add-preview" muted playsinline></video>
-                <input type="file" class="add-file-input" accept="video/*" hidden>
-            </label>
-        </div>
+    {{ if .draft }}
+    <form action="/publish" method="POST" class="add-container">
+        <input type="hidden" name="calculation_id" value="{{ .draft.ID }}">
+        <input type="hidden" name="name" value="{{ .draft.Name }}">
 
         <div class="add-field">
             <label class="add-field-label">Название расчёта</label>
-            <input type="text" class="add-input" value="{{ .service.Title }}">
+            <div class="add-name-readonly">{{ .draft.Name }}</div>
         </div>
 
         <div class="add-field">
             <label class="add-field-label">Описание</label>
-            <textarea class="add-textarea">{{ .service.Description }}</textarea>
+            <textarea name="description" class="add-textarea">{{ .draft.Description }}</textarea>
         </div>
 
         <div class="add-field">
             <label class="add-field-label">Возраст пациента</label>
-            <input type="number" class="add-input" value="{{ .service.Age }}" min="1" step="1">
+            <input type="number" name="age" class="add-input" value="{{ if .draft.Age }}{{ .draft.Age }}{{ end }}" min="1" step="1" required>
         </div>
 
         <div class="add-field">
             <label class="add-field-label">Пол</label>
             <div class="add-gender-toggle">
-                <input type="radio" name="gender" id="gender-male" class="add-gender-radio" {{ if eq .service.Gender "Мужской" }}checked{{ end }}>
+                <input type="radio" name="gender" id="gender-male" value="Male" class="add-gender-radio" {{ if eq .draft.Gender "Male" }}checked{{ end }}>
                 <label for="gender-male" class="add-gender-btn">Мужской</label>
-                <input type="radio" name="gender" id="gender-female" class="add-gender-radio" {{ if eq .service.Gender "Женский" }}checked{{ end }}>
+                <input type="radio" name="gender" id="gender-female" value="Female" class="add-gender-radio" {{ if eq .draft.Gender "Female" }}checked{{ end }}>
                 <label for="gender-female" class="add-gender-btn">Женский</label>
             </div>
         </div>
@@ -56,14 +47,37 @@
         <div class="add-row">
             <div class="add-field">
                 <label class="add-field-label">Вес (кг)</label>
-                <input type="number" class="add-input" value="{{ .service.Weight }}" min="0.1" step="0.1">
+                <input type="number" name="weight" class="add-input" value="{{ if .draft.Weight }}{{ .draft.Weight }}{{ end }}" min="0.1" step="0.1" required>
             </div>
             <div class="add-field">
                 <label class="add-field-label">Рост (см)</label>
-                <input type="number" class="add-input" value="{{ .service.Height }}" min="1" step="1">
+                <input type="number" name="height" class="add-input" value="{{ if .draft.Height }}{{ .draft.Height }}{{ end }}" min="1" step="1" required>
             </div>
         </div>
-    </div>
+
+        <button type="submit" class="add-submit-btn">Опубликовать</button>
+    </form>
+    {{ else }}
+    <form action="/add" method="POST" class="add-container">
+        <div class="add-placeholders">
+            <div class="add-placeholder">
+                <img class="add-preview add-preview-static" src="{{ .defImage }}" alt="Обложка">
+                <span class="add-placeholder-text">Обложка</span>
+            </div>
+            <div class="add-placeholder">
+                <video class="add-preview add-preview-static" src="{{ .defVideo }}" muted playsinline></video>
+                <span class="add-placeholder-text">Видео</span>
+            </div>
+        </div>
+
+        <div class="add-field">
+            <label class="add-field-label">Название расчёта</label>
+            <input type="text" name="name" class="add-input" placeholder="Например, ИМТ для подростков" required>
+        </div>
+
+        <button type="submit" class="add-submit-btn">Далее</button>
+    </form>
+    {{ end }}
 
     <nav class="tab-bar">
         <a href="/feed" class="tab-item">
@@ -90,26 +104,5 @@
             <span>Плитка</span>
         </a>
     </nav>
-    <script>
-        var placeholders = document.querySelectorAll('.add-placeholder');
-        for (var i = 0; i < placeholders.length; i++) {
-            (function (ph) {
-                var input = ph.querySelector('input[type="file"]');
-                input.addEventListener('change', function () {
-                    var file = input.files[0];
-                    if (!file) { return; }
-                    var isImage = input.accept.indexOf('image') !== -1;
-                    var preview = ph.querySelector('.add-preview');
-                    var url = URL.createObjectURL(file);
-                    preview.src = url;
-                    preview.style.display = 'block';
-                    if (!isImage) {
-                        preview.load && preview.load();
-                    }
-                    ph.classList.add('has-preview');
-                });
-            })(placeholders[i]);
-        }
-    </script>
 </body>
 </html>

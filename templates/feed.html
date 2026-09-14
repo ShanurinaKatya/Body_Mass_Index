@@ -16,7 +16,7 @@
 
     <div class="feed-container">
         <video class="feed-video" autoplay muted loop playsinline>
-            <source src="{{ .minio }}/{{ .service.VideoKey }}" type="video/mp4">
+            <source src="{{ if .service.VideoURL }}{{ .service.VideoURL }}{{ else }}{{ .defVideo }}{{ end }}" type="video/mp4">
         </video>
 
         <div class="feed-overlay">
@@ -63,7 +63,7 @@
             </div>
 
             <div class="feed-bottom">
-                <h1 class="feed-title">{{ .service.Title }}</h1>
+                <h1 class="feed-title">{{ .service.Name }}</h1>
                 <p class="feed-description">{{ .service.Description }}</p>
                 <label for="desc-toggle" class="feed-more-btn feed-more-open">ещё</label>
                 <label for="desc-toggle" class="feed-more-btn feed-more-close">меньше</label>
