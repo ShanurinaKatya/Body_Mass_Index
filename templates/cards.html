@@ -15,15 +15,18 @@
         <p class="page-subtitle">Специализированные калькуляторы ИМТ</p>
 
         <form action="/cards" method="GET" class="cards-filter" id="filterForm">
-            <label class="cards-filter-label">Фильтр по возрасту</label>
-            <div class="cards-filter-track">
-                <input type="range" name="age" min="0" max="100" value="{{ if .age }}{{ .age }}{{ else }}0{{ end }}" class="cards-filter-input" id="ageSlider">
-                <div class="cards-filter-range-labels">
-                    <span>0</span>
-                    <span id="ageBubble" class="cards-filter-bubble">{{ if .age }}{{ .age }}{{ else }}0{{ end }}</span>
-                    <span>100</span>
+            <div class="cards-filter-main">
+                <label class="cards-filter-label">Фильтр по возрасту</label>
+                <div class="cards-filter-track">
+                    <input type="range" name="age" min="0" max="100" value="{{ if .age }}{{ .age }}{{ else }}0{{ end }}" class="cards-filter-input" id="ageSlider">
+                    <div class="cards-filter-range-labels">
+                        <span>0</span>
+                        <span id="ageBubble" class="cards-filter-bubble">{{ if .age }}{{ .age }}{{ else }}0{{ end }}</span>
+                        <span>100</span>
+                    </div>
                 </div>
             </div>
+            <button type="submit" class="cards-filter-btn">Найти</button>
         </form>
     </header>
 
@@ -47,6 +50,14 @@
                         </div>
                     </div>
                 </a>
+                <form action="/delete" method="POST" class="card-delete">
+                    <input type="hidden" name="calculation_id" value="{{ .ID }}">
+                    <button type="submit" class="card-delete-btn" title="Удалить">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </form>
             </div>
             {{ end }}
         </div>
@@ -80,7 +91,6 @@
     <script>
         var slider = document.getElementById('ageSlider');
         var bubble = document.getElementById('ageBubble');
-        var form = document.getElementById('filterForm');
 
         function updateBubble() {
             var val = parseInt(slider.value);
@@ -97,10 +107,6 @@
 
         slider.addEventListener('input', updateBubble);
         updateBubble();
-
-        slider.addEventListener('change', function() {
-            form.submit();
-        });
     </script>
 </body>
 </html>

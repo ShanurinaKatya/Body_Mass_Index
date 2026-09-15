@@ -44,9 +44,9 @@ func (h *Handler) errorHandler(ctx *gin.Context, err error) {
 }
 
 func (h *Handler) defaultImageURL() string {
-	return h.MinioURL + "/default.jpg"
+	return "/static/image/default.jpg"
 }
 
 func (h *Handler) defaultVideoURL() string {
-	return h.MinioURL + "/Default.mp4"
+	return "/static/image/Default.mp4"
 }

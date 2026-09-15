@@ -19,6 +19,17 @@
         <input type="hidden" name="calculation_id" value="{{ .draft.ID }}">
         <input type="hidden" name="name" value="{{ .draft.Name }}">
 
+        <div class="add-placeholders">
+            <div class="add-placeholder" id="coverPlaceholder">
+                <img class="add-preview" alt="Обложка">
+                <span class="add-placeholder-text">Обложка</span>
+            </div>
+            <div class="add-placeholder" id="videoPlaceholder">
+                <video class="add-preview" muted playsinline></video>
+                <span class="add-placeholder-text">Видео</span>
+            </div>
+        </div>
+
         <div class="add-field">
             <label class="add-field-label">Название расчёта</label>
             <div class="add-name-readonly">{{ .draft.Name }}</div>
@@ -60,15 +71,17 @@
     {{ else }}
     <form action="/add" method="POST" class="add-container">
         <div class="add-placeholders">
-            <div class="add-placeholder">
-                <img class="add-preview add-preview-static" src="{{ .defImage }}" alt="Обложка">
+            <div class="add-placeholder" id="coverPlaceholder">
+                <img class="add-preview" alt="Обложка">
                 <span class="add-placeholder-text">Обложка</span>
             </div>
-            <div class="add-placeholder">
-                <video class="add-preview add-preview-static" src="{{ .defVideo }}" muted playsinline></video>
+            <div class="add-placeholder" id="videoPlaceholder">
+                <video class="add-preview" muted playsinline></video>
                 <span class="add-placeholder-text">Видео</span>
             </div>
         </div>
+        <input type="file" id="coverFile" accept="image/*" class="add-file-input" hidden>
+        <input type="file" id="videoFile" accept="video/*" class="add-file-input" hidden>
 
         <div class="add-field">
             <label class="add-field-label">Название расчёта</label>
@@ -104,5 +117,55 @@
             <span>Плитка</span>
         </a>
     </nav>
+    <script>
+        (function () {
+            var COVER_KEY = 'bmi_cover_data';
+            var VIDEO_KEY = 'bmi_video_data';
+
+            var coverBox = document.getElementById('coverPlaceholder');
+            var videoBox = document.getElementById('videoPlaceholder');
+
+            function showPreview(box, source) {
+                if (!box) return;
+                var preview = box.querySelector('.add-preview');
+                if (!preview) return;
+                preview.setAttribute('src', source);
+                if (preview.tagName === 'VIDEO') {
+                    preview.load();
+                }
+                box.classList.add('has-preview');
+            }
+
+            function applyStored() {
+                var cover = sessionStorage.getItem(COVER_KEY);
+                var video = sessionStorage.getItem(VIDEO_KEY);
+                if (cover) showPreview(coverBox, cover);
+                if (video) showPreview(videoBox, video);
+            }
+
+            function wireFileInput(inputId, box, key) {
+                var input = document.getElementById(inputId);
+                if (!input || !box) return;
+                box.addEventListener('click', function () {
+                    input.click();
+                });
+                input.addEventListener('change', function () {
+                    var file = input.files && input.files[0];
+                    if (!file) return;
+                    var reader = new FileReader();
+                    reader.onload = function (e) {
+                        var data = e.target.result;
+                        sessionStorage.setItem(key, data);
+                        showPreview(box, data);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            wireFileInput('coverFile', coverBox, COVER_KEY);
+            wireFileInput('videoFile', videoBox, VIDEO_KEY);
+            applyStored();
+        })();
+    </script>
 </body>
 </html>

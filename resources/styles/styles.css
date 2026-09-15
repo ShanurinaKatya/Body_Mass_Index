@@ -358,6 +358,32 @@ body {
 /* ===== FILTER (on cards page) ===== */
 .cards-filter {
     margin-top: var(--spacing-16);
+    display: flex;
+    align-items: flex-end;
+    gap: var(--spacing-12);
+}
+
+.cards-filter-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.cards-filter-btn {
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--accent-primary);
+    color: #ffffff;
+    font-size: var(--font-size-body-default);
+    font-weight: var(--font-weight-body-default-bold);
+    font-family: var(--font-family-body-default);
+    cursor: pointer;
+    padding: 12px 24px;
+    white-space: nowrap;
+    transition: opacity 0.2s;
+}
+
+.cards-filter-btn:hover {
+    opacity: 0.85;
 }
 
 .cards-filter-label {
@@ -477,6 +503,10 @@ body {
 
 .add-placeholder.has-preview .add-placeholder-text {
     display: none;
+}
+
+.add-placeholder.has-preview .add-preview {
+    display: block;
 }
 
 .add-placeholder:hover {
@@ -602,10 +632,10 @@ body {
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
     transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
 }
 
 .card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
@@ -656,11 +686,39 @@ body {
     color: #333333;
 }
 
-/* ===== LAB 2: ADD SUBMIT / STATIC PREVIEWS ===== */
-.add-preview-static {
-    display: block;
+/* ===== CARD DELETE (cross circle, top-right) ===== */
+.card-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 2;
+    margin: 0;
 }
 
+.card-delete-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.card-delete-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.card-delete-btn:hover {
+    background: #e43f44;
+}
+
+/* ===== LAB 2: ADD SUBMIT / STATIC PREVIEWS ===== */
 .add-placeholder-text {
     position: relative;
     z-index: 2;
