@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles/styles.css">
+    <link rel="stylesheet" href="/static/styles/patients_categories.css">
 </head>
 <body style="user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;">
     <header class="page-header">
@@ -20,12 +20,20 @@
         <input type="hidden" name="name" value="{{ .draft.Name }}">
 
         <div class="add-placeholders">
-            <div class="add-placeholder" id="coverPlaceholder">
+            <div class="add-placeholder{{ if .draft.ImageURL }} has-preview{{ end }}" id="coverPlaceholder">
+                {{ if .draft.ImageURL }}
+                <img class="add-preview" src="{{ .draft.ImageURL }}" alt="Обложка">
+                {{ else }}
                 <img class="add-preview" alt="Обложка">
+                {{ end }}
                 <span class="add-placeholder-text">Обложка</span>
             </div>
-            <div class="add-placeholder" id="videoPlaceholder">
+            <div class="add-placeholder{{ if .draft.VideoURL }} has-preview{{ end }}" id="videoPlaceholder">
+                {{ if .draft.VideoURL }}
+                <video class="add-preview" src="{{ .draft.VideoURL }}" muted playsinline></video>
+                {{ else }}
                 <video class="add-preview" muted playsinline></video>
+                {{ end }}
                 <span class="add-placeholder-text">Видео</span>
             </div>
         </div>
