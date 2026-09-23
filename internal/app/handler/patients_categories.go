@@ -136,6 +136,24 @@ func (h *Handler) PublishHandler(ctx *gin.Context) {
 		height = 0
 	}
 
+	source, srcErr := h.Repository.GetPublishedByName(name)
+	if srcErr != nil {
+		h.errorHandler(ctx, srcErr)
+		return
+	}
+	if source != nil && source.ID != uint(id) {
+		if err := h.Repository.PublishCategory(source.ID, name, description, age, gender, weight, height); err != nil {
+			h.errorHandler(ctx, err)
+			return
+		}
+		if err := h.Repository.DeleteCategory(uint(id)); err != nil {
+			h.errorHandler(ctx, err)
+			return
+		}
+		ctx.Redirect(http.StatusFound, fmt.Sprintf("/feed?id=%d", source.ID))
+		return
+	}
+
 	if err := h.Repository.PublishCategory(uint(id), name, description, age, gender, weight, height); err != nil {
 		h.errorHandler(ctx, err)
 		return
