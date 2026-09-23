@@ -16,24 +16,16 @@
 
     {{ if .draft }}
     <form action="/publish" method="POST" class="add-container">
-        <input type="hidden" name="calculation_id" value="{{ .draft.ID }}">
+        <input type="hidden" name="patients_categories_id" value="{{ .draft.ID }}">
         <input type="hidden" name="name" value="{{ .draft.Name }}">
 
         <div class="add-placeholders">
-            <div class="add-placeholder{{ if .draft.ImageURL }} has-preview{{ end }}" id="coverPlaceholder">
-                {{ if .draft.ImageURL }}
-                <img class="add-preview" src="{{ .draft.ImageURL }}" alt="Обложка">
-                {{ else }}
-                <img class="add-preview" alt="Обложка">
-                {{ end }}
+            <div class="add-placeholder has-preview" id="coverPlaceholder">
+                <img class="add-preview" src="{{ if .draft.ImageURL }}{{ .draft.ImageURL }}{{ else }}{{ $.defImage }}{{ end }}" alt="Обложка">
                 <span class="add-placeholder-text">Обложка</span>
             </div>
-            <div class="add-placeholder{{ if .draft.VideoURL }} has-preview{{ end }}" id="videoPlaceholder">
-                {{ if .draft.VideoURL }}
-                <video class="add-preview" src="{{ .draft.VideoURL }}" muted playsinline></video>
-                {{ else }}
-                <video class="add-preview" muted playsinline></video>
-                {{ end }}
+            <div class="add-placeholder has-preview" id="videoPlaceholder">
+                <video class="add-preview" src="{{ if .draft.VideoURL }}{{ .draft.VideoURL }}{{ else }}{{ $.defVideo }}{{ end }}" muted playsinline></video>
                 <span class="add-placeholder-text">Видео</span>
             </div>
         </div>
@@ -79,12 +71,12 @@
     {{ else }}
     <form action="/add" method="POST" class="add-container">
         <div class="add-placeholders">
-            <div class="add-placeholder" id="coverPlaceholder">
-                <img class="add-preview" alt="Обложка">
+            <div class="add-placeholder has-preview" id="coverPlaceholder">
+                <img class="add-preview" src="{{ .defImage }}" alt="Обложка">
                 <span class="add-placeholder-text">Обложка</span>
             </div>
-            <div class="add-placeholder" id="videoPlaceholder">
-                <video class="add-preview" muted playsinline></video>
+            <div class="add-placeholder has-preview" id="videoPlaceholder">
+                <video class="add-preview" src="{{ .defVideo }}" muted playsinline></video>
                 <span class="add-placeholder-text">Видео</span>
             </div>
         </div>

@@ -149,12 +149,12 @@ func (r *Repository) DeleteCategory(id uint) error {
 
 func (r *Repository) GetLikesCounts() (map[int]int, error) {
 	var rows []struct {
-		CalculationID uint
+		PatientsCategoriesID uint
 		Cnt           int
 	}
 	err := r.db.Model(&ds.Like{}).
-		Select("calculation_id, COUNT(*) AS cnt").
-		Group("calculation_id").
+		Select("patients_categories_id, COUNT(*) AS cnt").
+		Group("patients_categories_id").
 		Scan(&rows).Error
 	if err != nil {
 		return nil, err
@@ -162,13 +162,13 @@ func (r *Repository) GetLikesCounts() (map[int]int, error) {
 
 	res := make(map[int]int, len(rows))
 	for _, row := range rows {
-		res[int(row.CalculationID)] = row.Cnt
+		res[int(row.PatientsCategoriesID)] = row.Cnt
 	}
 	return res, nil
 }
 
 func (r *Repository) GetLikesCount(id uint) (int, error) {
 	var count int64
-	err := r.db.Model(&ds.Like{}).Where("calculation_id = ?", id).Count(&count).Error
+	err := r.db.Model(&ds.Like{}).Where("patients_categories_id = ?", id).Count(&count).Error
 	return int(count), err
 }

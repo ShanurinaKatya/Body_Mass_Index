@@ -106,9 +106,9 @@ func (h *Handler) CreateHandler(ctx *gin.Context) {
 }
 
 func (h *Handler) PublishHandler(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.PostForm("calculation_id"), 10, 64)
+	id, err := strconv.ParseUint(ctx.PostForm("patients_categories_id"), 10, 64)
 	if err != nil {
-		h.errorHandler(ctx, fmt.Errorf("invalid calculation id"))
+		h.errorHandler(ctx, fmt.Errorf("invalid patients_categories id"))
 		return
 	}
 
@@ -183,7 +183,7 @@ func (h *Handler) CardsHandler(ctx *gin.Context) {
 
 	if ageStr != "" {
 		age, convErr := strconv.Atoi(ageStr)
-		if convErr == nil && age > 0 {
+		if convErr == nil && age >= 0 && age < 100 {
 			services, err = h.Repository.GetPublishedByAge(age)
 		} else {
 			services, err = h.Repository.GetPublished()
@@ -210,9 +210,9 @@ func (h *Handler) CardsHandler(ctx *gin.Context) {
 }
 
 func (h *Handler) DeleteHandler(ctx *gin.Context) {
-	id, err := strconv.ParseUint(ctx.PostForm("calculation_id"), 10, 64)
+	id, err := strconv.ParseUint(ctx.PostForm("patients_categories_id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid calculation id"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid patients_categories id"})
 		return
 	}
 
