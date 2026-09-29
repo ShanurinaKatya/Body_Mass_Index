@@ -10,16 +10,16 @@ type User struct {
 }
 
 type PatientsCategorie struct {
-	ID          uint   `gorm:"primaryKey" json:"id"`
-	Name        string `gorm:"type:varchar(255);not null" json:"name"`
-	Description string `gorm:"type:text" json:"description"`
-	Status      string `gorm:"type:varchar(20);not null;default:'draft';check:status_in,status in ('draft','published','deleted')" json:"-"`
-	ImageURL    string `gorm:"type:varchar(255);not null;default:'/static/image/default.jpg'" json:"image_url"`
-	VideoURL    string `gorm:"type:varchar(255);not null;default:'/static/image/Default.mp4'" json:"video_url"`
-	Age         int    `json:"age"`
-	Gender      string `gorm:"type:varchar(10);check:gender_in,gender in ('Male','Female')" json:"gender"`
-	Weight      float64 `gorm:"type:numeric(5,2)" json:"weight"`
-	Height      int    `json:"height"`
+	ID          uint      `gorm:"primaryKey" json:"id"`
+	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
+	Description string    `gorm:"type:text" json:"description"`
+	Status      string    `gorm:"type:varchar(20);not null;default:'draft';check:status_in,status in ('draft','published','deleted')" json:"-"`
+	ImageURL    string    `gorm:"type:varchar(255);not null;default:'/static/image/default.jpg'" json:"image_url"`
+	VideoURL    string    `gorm:"type:varchar(255);not null;default:'/static/image/Default.mp4'" json:"video_url"`
+	Age         int       `json:"age"`
+	Gender      string    `gorm:"type:varchar(10);check:gender_in,gender in ('Male','Female','')" json:"gender"`
+	Weight      float64   `gorm:"type:numeric(5,2)" json:"weight"`
+	Height      int       `json:"height"`
 	CreatedAt   time.Time `gorm:"type:timestamptz;default:now()" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"type:timestamptz;default:now()" json:"updated_at"`
 	UserID      uint      `gorm:"not null;index;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT" json:"-"`
@@ -65,10 +65,15 @@ type PatientsCategoriesSerializer struct {
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
 	Likes       int            `json:"likes"`
+	IsCreator   int            `json:"is_creator"`
 	Creator     UserSerializer `json:"creator"`
 }
 
-func SerializePatientsCategorie(pc PatientsCategorie, likes int) PatientsCategoriesSerializer {
+func SerializePatientsCategorie(pc PatientsCategorie, likes int, currentUserID uint) PatientsCategoriesSerializer {
+	isCreator := 0
+	if pc.UserID == currentUserID {
+		isCreator = 1
+	}
 	return PatientsCategoriesSerializer{
 		ID:          pc.ID,
 		Name:        pc.Name,
@@ -82,14 +87,15 @@ func SerializePatientsCategorie(pc PatientsCategorie, likes int) PatientsCategor
 		CreatedAt:   pc.CreatedAt,
 		UpdatedAt:   pc.UpdatedAt,
 		Likes:       likes,
+		IsCreator:   isCreator,
 		Creator:     SerializeUser(pc.User),
 	}
 }
 
-func SerializePatientsCategories(items []PatientsCategorie, likes map[int]int) []PatientsCategoriesSerializer {
+func SerializePatientsCategories(items []PatientsCategorie, likes map[int]int, currentUserID uint) []PatientsCategoriesSerializer {
 	res := make([]PatientsCategoriesSerializer, 0, len(items))
 	for _, it := range items {
-		res = append(res, SerializePatientsCategorie(it, likes[int(it.ID)]))
+		res = append(res, SerializePatientsCategorie(it, likes[int(it.ID)], currentUserID))
 	}
 	return res
 }

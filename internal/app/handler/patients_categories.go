@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -27,16 +28,14 @@ func NewHandler(r *repository.Repository) *Handler {
 func (h *Handler) RegisterAPI(router *gin.Engine) {
 	api := router.Group("/api")
 
-	// ===== Домен услуги: patients_categories =====
-	api.GET("/patients_categories", h.APIGetPatientsCategories)        // список published + фильтр ?age=
-	api.POST("/patients_categories", h.APICreatePatientsCategorie)     // добавление + файлы (multipart)
-	api.GET("/patients_categories/draft", h.APIGetDraft)               // черновик текущего пользователя
-	api.GET("/patients_categories/feed", h.APIFeed)                    // лента: без id или ?id=X&next=true
-	api.PUT("/patients_categories/:id/publish", h.APIPublish)          // draft -> published
-	api.DELETE("/patients_categories/:id", h.APIDelete)                // soft delete
-	api.POST("/patients_categories/:id/like", h.APILike)               // {"like": 1|0}
+	api.GET("/patients_categories", h.APIGetPatientsCategories)
+	api.POST("/patients_categories", h.APICreatePatientsCategorie)
+	api.GET("/patients_categories/draft", h.APIGetDraft)
+	api.GET("/patients_categories/feed", h.APIFeed)
+	api.PUT("/patients_categories/:id/publish", h.APIPublish)
+	api.DELETE("/patients_categories/:id", h.APIDelete)
+	api.POST("/patients_categories/:id/like", h.APILike)
 
-	// ===== Домен пользователь =====
 	api.POST("/users/register", h.APIRegister)
 	api.POST("/users/auth", h.APIAuth)
 	api.POST("/users/logout", h.APILogout)
@@ -49,11 +48,6 @@ func defaultGender(g string) string {
 	return g
 }
 
-// =========================================================
-// API: Домен услуги
-// =========================================================
-
-// GET /api/patients_categories — список опубликованных, фильтр ?age=
 func (h *Handler) APIGetPatientsCategories(ctx *gin.Context) {
 	ageStr := ctx.Query("age")
 
@@ -80,10 +74,9 @@ func (h *Handler) APIGetPatientsCategories(ctx *gin.Context) {
 		likes = map[int]int{}
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategories(services, likes))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategories(services, likes, user.Get().ID))
 }
 
-// POST /api/patients_categories — multipart: поля + файлы image/video -> MinIO, статус draft
 func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
 	creatorID := user.Get().ID
 
@@ -105,30 +98,6 @@ func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
 	}
 	if existing != nil {
 		ctx.Status(http.StatusConflict)
-		return
-	}
-
-	description := ctx.Request.FormValue("description")
-
-	ageStr := ctx.Request.FormValue("age")
-	age, ageErr := strconv.Atoi(ageStr)
-	if ageErr != nil || age < 1 {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-	gender := defaultGender(ctx.Request.FormValue("gender"))
-
-	weightStr := ctx.Request.FormValue("weight")
-	weight, weightErr := strconv.ParseFloat(weightStr, 64)
-	if weightErr != nil || weight < 0 {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
-
-	heightStr := ctx.Request.FormValue("height")
-	height, heightErr := strconv.Atoi(heightStr)
-	if heightErr != nil || height < 1 {
-		ctx.Status(http.StatusBadRequest)
 		return
 	}
 
@@ -158,13 +127,8 @@ func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
 	}
 
 	pc, err := h.Repository.CreateCategoryDraft(ds.PatientsCategorie{
-		Name:        name,
-		Description: description,
-		Age:         age,
-		Gender:      gender,
-		Weight:      weight,
-		Height:      height,
-		UserID:      creatorID,
+		Name:   name,
+		UserID: creatorID,
 	})
 	if err != nil {
 		ctx.Status(http.StatusInternalServerError)
@@ -190,7 +154,7 @@ func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, ds.SerializePatientsCategorie(*updated, 0))
+	ctx.JSON(http.StatusCreated, ds.SerializePatientsCategorie(*updated, 0, user.Get().ID))
 }
 
 // GET /api/patients_categories/draft — черновик текущего пользователя (id не указывается)
@@ -201,7 +165,7 @@ func (h *Handler) APIGetDraft(ctx *gin.Context) {
 		return
 	}
 	if draft == nil {
-		ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(ds.PatientsCategorie{}, 0))
+		ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(ds.PatientsCategorie{}, 0, user.Get().ID))
 		return
 	}
 
@@ -210,7 +174,7 @@ func (h *Handler) APIGetDraft(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(*draft, likes))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(*draft, likes, user.Get().ID))
 }
 
 // GET /api/patients_categories/feed — лента: без id (первая) или ?id=X&next=true
@@ -249,10 +213,11 @@ func (h *Handler) APIFeed(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(calc, likes))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(calc, likes, user.Get().ID))
 }
 
-// PUT /api/patients_categories/:id/publish — смена статуса draft -> published
+// PUT /api/patients_categories/:id/publish — добавляет описание/параметры и переводит draft -> published
+// Модель публикации: Description · Age · Gender / Weight · Height
 func (h *Handler) APIPublish(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -260,7 +225,40 @@ func (h *Handler) APIPublish(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.Repository.PublishDraft(uint(id)); err != nil {
+	var req struct {
+		Description string  `json:"description"`
+		Age         int     `json:"age"`
+		Gender      string  `json:"gender"`
+		Weight      float64 `json:"weight"`
+		Height      int     `json:"height"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	age := req.Age
+	if age < 1 {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	gender := defaultGender(req.Gender)
+	weight := req.Weight
+	if weight < 0 {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+	height := req.Height
+	if height < 1 {
+		ctx.Status(http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Repository.UpdateAndPublishDraft(uint(id), req.Description, age, gender, weight, height); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
@@ -276,7 +274,7 @@ func (h *Handler) APIPublish(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(pc, likes))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(pc, likes, user.Get().ID))
 }
 
 // DELETE /api/patients_categories/:id — soft delete
@@ -287,7 +285,15 @@ func (h *Handler) APIDelete(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.Repository.DeleteCategory(uint(id)); err != nil {
+	if err := h.Repository.DeleteCategory(uint(id), user.Get().ID); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			ctx.Status(http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, repository.ErrForbidden) {
+			ctx.Status(http.StatusForbidden)
+			return
+		}
 		ctx.Status(http.StatusBadRequest)
 		return
 	}

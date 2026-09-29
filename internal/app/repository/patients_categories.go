@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"time"
 
 	"patients_categories/internal/app/ds"
 
@@ -23,10 +24,15 @@ const (
 	DeletedStatus   = "deleted"
 )
 
+var (
+	ErrNotFound  = errors.New("patients categorie not found")
+	ErrForbidden = errors.New("access to patients categorie is forbidden")
+)
+
 type Repository struct {
-	db         *gorm.DB
-	minio      *minio.Client
-	minioURL   string
+	db          *gorm.DB
+	minio       *minio.Client
+	minioURL    string
 	minioBucket string
 }
 
@@ -120,10 +126,13 @@ func (r *Repository) CreateCategoryDraft(c ds.PatientsCategorie) (ds.PatientsCat
 	return c, err
 }
 
-func (r *Repository) PublishDraft(id uint) error {
+func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int, gender string, weight float64, height int) error {
 	var calc ds.PatientsCategorie
 	err := r.db.Where("id = ?", id).First(&calc).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("%w: category %d", ErrNotFound, id)
+		}
 		return err
 	}
 	if calc.Status != DraftStatus {
@@ -131,22 +140,35 @@ func (r *Repository) PublishDraft(id uint) error {
 	}
 	return r.db.Model(&ds.PatientsCategorie{}).
 		Where("id = ? AND status = ?", id, DraftStatus).
-		Update("status", PublishedStatus).Error
+		Updates(map[string]interface{}{
+			"description": description,
+			"age":         age,
+			"gender":      gender,
+			"weight":      weight,
+			"height":      height,
+			"status":      PublishedStatus,
+			"updated_at":  time.Now(),
+		}).Error
 }
 
-func (r *Repository) DeleteCategory(id uint) error {
-	row := r.db.Raw("SELECT id, name FROM patients_categories WHERE id = $1", id).Row()
+func (r *Repository) DeleteCategory(id, userID uint) error {
+	row := r.db.Raw("SELECT id, name, user_id FROM patients_categories WHERE id = $1", id).Row()
 	var calcID uint
 	var name string
-	if err := row.Scan(&calcID, &name); err != nil {
+	var ownerID uint
+	if err := row.Scan(&calcID, &name, &ownerID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("category %d not found", id)
+			return fmt.Errorf("%w: category %d", ErrNotFound, id)
 		}
 		return fmt.Errorf("error selecting category: %w", err)
 	}
 
-	err := r.db.Exec("UPDATE patients_categories SET status = ?, updated_at = NOW() WHERE id = ?",
-		DeletedStatus, calcID).Error
+	if ownerID != userID {
+		return fmt.Errorf("%w: category %d", ErrForbidden, id)
+	}
+
+	err := r.db.Exec("UPDATE patients_categories SET status = ?, updated_at = NOW() WHERE id = ? AND user_id = ?",
+		DeletedStatus, calcID, userID).Error
 	if err != nil {
 		return fmt.Errorf("error deleting category: %w", err)
 	}
