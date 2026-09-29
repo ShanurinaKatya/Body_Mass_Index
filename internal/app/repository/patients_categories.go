@@ -1,13 +1,18 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
+	"mime/multipart"
+	"net/http"
+	"strconv"
 
 	"patients_categories/internal/app/ds"
 
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -19,20 +24,53 @@ const (
 )
 
 type Repository struct {
-	db *gorm.DB
+	db         *gorm.DB
+	minio      *minio.Client
+	minioURL   string
+	minioBucket string
 }
 
-func New(dsn string) (*Repository, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+type RepositorySettings struct {
+	PostgresDSN     string
+	MinioEndpoint   string
+	MinioAccessKey  string
+	MinioSecretKey  string
+	MinioBucketName string
+}
+
+func New(settings *RepositorySettings) (*Repository, error) {
+	db, err := gorm.Open(postgres.Open(settings.PostgresDSN), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	return &Repository{db: db}, nil
+
+	minioClient, err := minio.New(settings.MinioEndpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(settings.MinioAccessKey, settings.MinioSecretKey, ""),
+		Secure: false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating minio client: %w", err)
+	}
+
+	return &Repository{
+		db:          db,
+		minio:       minioClient,
+		minioURL:    "http://" + settings.MinioEndpoint + "/" + settings.MinioBucketName,
+		minioBucket: settings.MinioBucketName,
+	}, nil
 }
 
 func (r *Repository) GetPublished() ([]ds.PatientsCategorie, error) {
 	var calcs []ds.PatientsCategorie
-	err := r.db.Where("status = ?", PublishedStatus).Order("id").Find(&calcs).Error
+	err := r.db.Preload("User").Where("status = ?", PublishedStatus).Order("id").Find(&calcs).Error
+	return calcs, err
+}
+
+func (r *Repository) GetPublishedFiltered(age int) ([]ds.PatientsCategorie, error) {
+	var calcs []ds.PatientsCategorie
+	err := r.db.Preload("User").
+		Where("status = ? AND age = ?", PublishedStatus, age).
+		Order("id").Find(&calcs).Error
 	return calcs, err
 }
 
@@ -54,13 +92,19 @@ func (r *Repository) GetNext(id uint) (ds.PatientsCategorie, error) {
 
 func (r *Repository) GetPublishedByID(id uint) (ds.PatientsCategorie, error) {
 	var calc ds.PatientsCategorie
-	err := r.db.Where("id = ? AND status = ?", id, PublishedStatus).First(&calc).Error
+	err := r.db.Preload("User").Where("id = ? AND status = ?", id, PublishedStatus).First(&calc).Error
+	return calc, err
+}
+
+func (r *Repository) GetFirstPublished() (ds.PatientsCategorie, error) {
+	var calc ds.PatientsCategorie
+	err := r.db.Preload("User").Where("status = ?", PublishedStatus).Order("id").First(&calc).Error
 	return calc, err
 }
 
 func (r *Repository) GetDraftByUser(userID uint) (*ds.PatientsCategorie, error) {
 	var calc ds.PatientsCategorie
-	err := r.db.Where("user_id = ? AND status = ?", userID, DraftStatus).First(&calc).Error
+	err := r.db.Preload("User").Where("user_id = ? AND status = ?", userID, DraftStatus).First(&calc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -70,62 +114,24 @@ func (r *Repository) GetDraftByUser(userID uint) (*ds.PatientsCategorie, error) 
 	return &calc, nil
 }
 
-func (r *Repository) GetPublishedByName(name string) (*ds.PatientsCategorie, error) {
+func (r *Repository) CreateCategoryDraft(c ds.PatientsCategorie) (ds.PatientsCategorie, error) {
+	c.Status = DraftStatus
+	err := r.db.Select("Name", "Description", "Status", "Age", "Gender", "Weight", "Height", "UserID").Create(&c).Error
+	return c, err
+}
+
+func (r *Repository) PublishDraft(id uint) error {
 	var calc ds.PatientsCategorie
-	err := r.db.Where("status = ? AND name = ?", PublishedStatus, name).First(&calc).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
-	}
+	err := r.db.Where("id = ?", id).First(&calc).Error
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &calc, nil
-}
-
-func (r *Repository) GetPublishedByAge(age int) ([]ds.PatientsCategorie, error) {
-	var calcs []ds.PatientsCategorie
-	err := r.db.Where("status = ? AND age = ?", PublishedStatus, age).Order("id").Find(&calcs).Error
-	return calcs, err
-}
-
-func (r *Repository) CreateCategory(name string, userID uint) (ds.PatientsCategorie, error) {
-	calc := ds.PatientsCategorie{
-		Name:   name,
-		Status: DraftStatus,
-		UserID: userID,
+	if calc.Status != DraftStatus {
+		return fmt.Errorf("category %d is not a draft, cannot publish", id)
 	}
-	err := r.db.Select("Name", "Status", "UserID").Create(&calc).Error
-	return calc, err
-}
-
-func (r *Repository) PrefillDraft(id uint, src ds.PatientsCategorie) error {
 	return r.db.Model(&ds.PatientsCategorie{}).
 		Where("id = ? AND status = ?", id, DraftStatus).
-		Updates(map[string]interface{}{
-			"description": src.Description,
-			"image_url":   src.ImageURL,
-			"video_url":   src.VideoURL,
-			"age":         src.Age,
-			"gender":      src.Gender,
-			"weight":      src.Weight,
-			"height":      src.Height,
-			"updated_at":  time.Now(),
-		}).Error
-}
-
-func (r *Repository) PublishCategory(id uint, name, description string, age int, gender string, weight float64, height int) error {
-	return r.db.Model(&ds.PatientsCategorie{}).
-		Where("id = ?", id).
-		Updates(map[string]interface{}{
-			"name":        name,
-			"description": description,
-			"age":         age,
-			"gender":      gender,
-			"weight":      weight,
-			"height":      height,
-			"status":      PublishedStatus,
-			"updated_at":  time.Now(),
-		}).Error
+		Update("status", PublishedStatus).Error
 }
 
 func (r *Repository) DeleteCategory(id uint) error {
@@ -147,10 +153,59 @@ func (r *Repository) DeleteCategory(id uint) error {
 	return nil
 }
 
+func (r *Repository) UploadCategoryImage(id uint, header *multipart.FileHeader) error {
+	filename := "pc_" + strconv.FormatUint(uint64(id), 10) + "_img" + fileExt(header.Filename)
+	return r.uploadToCategory(id, filename, header, "image_url")
+}
+
+func (r *Repository) UploadCategoryVideo(id uint, header *multipart.FileHeader) error {
+	filename := "pc_" + strconv.FormatUint(uint64(id), 10) + "_video" + fileExt(header.Filename)
+	return r.uploadToCategory(id, filename, header, "video_url")
+}
+
+func fileExt(name string) string {
+	for i := len(name) - 1; i >= 0; i-- {
+		if name[i] == '.' {
+			return name[i:]
+		}
+	}
+	return ""
+}
+
+func (r *Repository) uploadToCategory(id uint, filename string, header *multipart.FileHeader, column string) error {
+	file, err := header.Open()
+	if err != nil {
+		return fmt.Errorf("ошибка открытия файла: %w", err)
+	}
+	defer file.Close()
+
+	buffer := make([]byte, 512)
+	if _, err := file.Read(buffer); err != nil {
+		return fmt.Errorf("ошибка чтения файла: %w", err)
+	}
+	contentType := http.DetectContentType(buffer)
+	if _, err := file.Seek(0, 0); err != nil {
+		return fmt.Errorf("ошибка перемещения по файловому потоку: %w", err)
+	}
+
+	if _, err := r.minio.PutObject(context.Background(), r.minioBucket, filename, file, header.Size, minio.PutObjectOptions{
+		ContentType: contentType,
+	}); err != nil {
+		return fmt.Errorf("не удалось добавить объект в хранилище minio: %w", err)
+	}
+
+	url := r.minioURL + "/" + filename
+	if err := r.db.Model(&ds.PatientsCategorie{}).Where("id = ?", id).Update(column, url).Error; err != nil {
+		r.minio.RemoveObject(context.Background(), r.minioBucket, filename, minio.RemoveObjectOptions{})
+		return fmt.Errorf("ошибка сохранения пути к файлу: %w", err)
+	}
+	return nil
+}
+
 func (r *Repository) GetLikesCounts() (map[int]int, error) {
 	var rows []struct {
 		PatientsCategoriesID uint
-		Cnt           int
+		Cnt                  int
 	}
 	err := r.db.Model(&ds.Like{}).
 		Select("patients_categories_id, COUNT(*) AS cnt").
@@ -171,4 +226,46 @@ func (r *Repository) GetLikesCount(id uint) (int, error) {
 	var count int64
 	err := r.db.Model(&ds.Like{}).Where("patients_categories_id = ?", id).Count(&count).Error
 	return int(count), err
+}
+
+func (r *Repository) SetLike(categoryID, userID uint, liked bool) error {
+	if liked {
+		var exists int64
+		err := r.db.Model(&ds.Like{}).
+			Where("patients_categories_id = ? AND user_id = ?", categoryID, userID).
+			Count(&exists).Error
+		if err != nil {
+			return err
+		}
+		if exists > 0 {
+			return nil
+		}
+		return r.db.Create(&ds.Like{
+			UserID:               userID,
+			PatientsCategoriesID: categoryID,
+		}).Error
+	}
+	return r.db.Where("patients_categories_id = ? AND user_id = ?", categoryID, userID).
+		Delete(&ds.Like{}).Error
+}
+
+func (r *Repository) CreateUser(username, password string) (ds.User, error) {
+	u := ds.User{
+		Username:     username,
+		PasswordHash: password,
+	}
+	err := r.db.Select("Username", "PasswordHash", "IsModerator").Create(&u).Error
+	return u, err
+}
+
+func (r *Repository) GetUserByUsername(username string) (*ds.User, error) {
+	var u ds.User
+	err := r.db.Where("username = ?", username).First(&u).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &u, nil
 }

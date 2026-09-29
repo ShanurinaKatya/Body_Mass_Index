@@ -24,19 +24,27 @@ func main() {
 		logrus.Fatal("Config init error:", err)
 	}
 
-	rep, err := repository.New(dsn.FromEnv())
+	rep, err := repository.New(&repository.RepositorySettings{
+		PostgresDSN:     dsn.FromEnv(),
+		MinioEndpoint:   envOr("MINIO_ENDPOINT", "localhost:9000"),
+		MinioAccessKey:  envOr("MINIO_ACCESS_KEY", "root"),
+		MinioSecretKey:  envOr("MINIO_SECRET_KEY", "rootpassword"),
+		MinioBucketName: envOr("MINIO_BUCKET_NAME", "body-mass-index"),
+	})
 	if err != nil {
 		logrus.Fatal("Repository init error:", err)
 	}
 
-	minioURL := "http://localhost:9000/body-mass-index"
-	if v := os.Getenv("MINIO_URL"); v != "" {
-		minioURL = v
-	}
-
-	h := handler.NewHandler(rep, minioURL)
+	h := handler.NewHandler(rep)
 
 	router := gin.Default()
 	app := pkg.NewApp(cfg, router, h)
 	app.RunApp()
+}
+
+func envOr(key, def string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+	return def
 }
