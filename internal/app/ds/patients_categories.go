@@ -6,7 +6,6 @@ type User struct {
 	ID           uint   `gorm:"primaryKey" json:"id"`
 	Username     string `gorm:"type:varchar(50);not null;unique" json:"username"`
 	PasswordHash string `gorm:"type:varchar(255);not null" json:"-"`
-	IsModerator  bool   `gorm:"type:boolean;default:false" json:"is_moderator"`
 }
 
 type PatientsCategorie struct {
@@ -17,9 +16,7 @@ type PatientsCategorie struct {
 	ImageURL    string    `gorm:"type:varchar(255);not null;default:'/static/image/default.jpg'" json:"image_url"`
 	VideoURL    string    `gorm:"type:varchar(255);not null;default:'/static/image/Default.mp4'" json:"video_url"`
 	Age         int       `json:"age"`
-	Gender      string    `gorm:"type:varchar(10);check:gender_in,gender in ('Male','Female','')" json:"gender"`
 	Weight      float64   `gorm:"type:numeric(5,2)" json:"weight"`
-	Height      int       `json:"height"`
 	CreatedAt   time.Time `gorm:"type:timestamptz;default:now()" json:"created_at"`
 	UpdatedAt   time.Time `gorm:"type:timestamptz;default:now()" json:"updated_at"`
 	UserID      uint      `gorm:"not null;index;constraint:OnUpdate:RESTRICT,OnDelete:RESTRICT" json:"-"`
@@ -39,41 +36,32 @@ type Like struct {
 }
 
 type UserSerializer struct {
-	ID          uint   `json:"id"`
-	Username    string `json:"username"`
-	IsModerator bool   `json:"is_moderator"`
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
 }
 
 func SerializeUser(u User) UserSerializer {
 	return UserSerializer{
-		ID:          u.ID,
-		Username:    u.Username,
-		IsModerator: u.IsModerator,
+		ID:       u.ID,
+		Username: u.Username,
 	}
 }
 
 type PatientsCategoriesSerializer struct {
-	ID          uint           `json:"id"`
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	ImageURL    string         `json:"image_url"`
-	VideoURL    string         `json:"video_url"`
-	Age         int            `json:"age"`
-	Gender      string         `json:"gender"`
-	Weight      float64        `json:"weight"`
-	Height      int            `json:"height"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"updated_at"`
-	Likes       int            `json:"likes"`
-	IsCreator   int            `json:"is_creator"`
-	Creator     UserSerializer `json:"creator"`
+	ID          uint      `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	ImageURL    string    `json:"image_url"`
+	VideoURL    string    `json:"video_url"`
+	Age         int       `json:"age"`
+	Weight      float64   `json:"weight"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	Likes       int       `json:"likes"`
+	CreatorID   uint      `json:"creator_id"`
 }
 
-func SerializePatientsCategorie(pc PatientsCategorie, likes int, currentUserID uint) PatientsCategoriesSerializer {
-	isCreator := 0
-	if pc.UserID == currentUserID {
-		isCreator = 1
-	}
+func SerializePatientsCategorie(pc PatientsCategorie, likes int) PatientsCategoriesSerializer {
 	return PatientsCategoriesSerializer{
 		ID:          pc.ID,
 		Name:        pc.Name,
@@ -81,21 +69,50 @@ func SerializePatientsCategorie(pc PatientsCategorie, likes int, currentUserID u
 		ImageURL:    pc.ImageURL,
 		VideoURL:    pc.VideoURL,
 		Age:         pc.Age,
-		Gender:      pc.Gender,
 		Weight:      pc.Weight,
-		Height:      pc.Height,
 		CreatedAt:   pc.CreatedAt,
 		UpdatedAt:   pc.UpdatedAt,
 		Likes:       likes,
-		IsCreator:   isCreator,
-		Creator:     SerializeUser(pc.User),
+		CreatorID:   pc.UserID,
 	}
 }
 
-func SerializePatientsCategories(items []PatientsCategorie, likes map[int]int, currentUserID uint) []PatientsCategoriesSerializer {
-	res := make([]PatientsCategoriesSerializer, 0, len(items))
+// PatientsCategoriesTileSerializer — модель плитки: базовая модель услуги
+// плюс признак «карточка создана текущим пользователем».
+type PatientsCategoriesTileSerializer struct {
+	PatientsCategoriesSerializer
+	IsCreator int `json:"is_creator"`
+}
+
+func SerializePatientsCategorieTile(pc PatientsCategorie, likes, isCreator int) PatientsCategoriesTileSerializer {
+	return PatientsCategoriesTileSerializer{
+		PatientsCategoriesSerializer: SerializePatientsCategorie(pc, likes),
+		IsCreator:                    isCreator,
+	}
+}
+
+func SerializePatientsCategoriesTiles(items []PatientsCategorie, likes map[int]int, currentUserID uint) []PatientsCategoriesTileSerializer {
+	res := make([]PatientsCategoriesTileSerializer, 0, len(items))
 	for _, it := range items {
-		res = append(res, SerializePatientsCategorie(it, likes[int(it.ID)], currentUserID))
+		isCreator := 0
+		if it.UserID == currentUserID {
+			isCreator = 1
+		}
+		res = append(res, SerializePatientsCategorieTile(it, likes[int(it.ID)], isCreator))
 	}
 	return res
+}
+
+// PatientsCategoriesFeedSerializer — модель ленты: базовая модель услуги
+// плюс признак «текущий пользователь лайкнул эту карточку».
+type PatientsCategoriesFeedSerializer struct {
+	PatientsCategoriesSerializer
+	IsLiked int `json:"is_liked"`
+}
+
+func SerializePatientsCategorieFeed(pc PatientsCategorie, likes, isLiked int) PatientsCategoriesFeedSerializer {
+	return PatientsCategoriesFeedSerializer{
+		PatientsCategoriesSerializer: SerializePatientsCategorie(pc, likes),
+		IsLiked:                      isLiked,
+	}
 }

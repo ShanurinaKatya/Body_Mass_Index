@@ -122,11 +122,11 @@ func (r *Repository) GetDraftByUser(userID uint) (*ds.PatientsCategorie, error) 
 
 func (r *Repository) CreateCategoryDraft(c ds.PatientsCategorie) (ds.PatientsCategorie, error) {
 	c.Status = DraftStatus
-	err := r.db.Select("Name", "Description", "Status", "Age", "Gender", "Weight", "Height", "UserID").Create(&c).Error
+	err := r.db.Select("Name", "Description", "Status", "Age", "Weight", "UserID").Create(&c).Error
 	return c, err
 }
 
-func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int, gender string, weight float64, height int) error {
+func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int, weight float64) error {
 	var calc ds.PatientsCategorie
 	err := r.db.Where("id = ?", id).First(&calc).Error
 	if err != nil {
@@ -143,9 +143,7 @@ func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int,
 		Updates(map[string]interface{}{
 			"description": description,
 			"age":         age,
-			"gender":      gender,
 			"weight":      weight,
-			"height":      height,
 			"status":      PublishedStatus,
 			"updated_at":  time.Now(),
 		}).Error
@@ -224,6 +222,15 @@ func (r *Repository) uploadToCategory(id uint, filename string, header *multipar
 	return nil
 }
 
+// IsLiked — лайкнул ли пользователь userID услугу categoryID.
+func (r *Repository) IsLiked(categoryID, userID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&ds.Like{}).
+		Where("patients_categories_id = ? AND user_id = ?", categoryID, userID).
+		Count(&count).Error
+	return count > 0, err
+}
+
 func (r *Repository) GetLikesCounts() (map[int]int, error) {
 	var rows []struct {
 		PatientsCategoriesID uint
@@ -276,7 +283,7 @@ func (r *Repository) CreateUser(username, password string) (ds.User, error) {
 		Username:     username,
 		PasswordHash: password,
 	}
-	err := r.db.Select("Username", "PasswordHash", "IsModerator").Create(&u).Error
+	err := r.db.Select("Username", "PasswordHash").Create(&u).Error
 	return u, err
 }
 

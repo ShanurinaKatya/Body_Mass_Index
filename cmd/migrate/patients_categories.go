@@ -24,5 +24,17 @@ func main() {
 		logrus.Fatal("migration failed:", err)
 	}
 
+	// AutoMigrate не удаляет колонки, поэтому устаревшие поля убираем явно
+	dropped := []string{
+		"ALTER TABLE patients_categories DROP COLUMN IF EXISTS gender",
+		"ALTER TABLE patients_categories DROP COLUMN IF EXISTS height",
+		"ALTER TABLE users DROP COLUMN IF EXISTS is_moderator",
+	}
+	for _, stmt := range dropped {
+		if err := db.Exec(stmt).Error; err != nil {
+			logrus.Fatal("migration failed:", err)
+		}
+	}
+
 	logrus.Info("migration completed")
 }

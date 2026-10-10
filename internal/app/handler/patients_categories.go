@@ -41,13 +41,6 @@ func (h *Handler) RegisterAPI(router *gin.Engine) {
 	api.POST("/users/logout", h.APILogout)
 }
 
-func defaultGender(g string) string {
-	if g != "Male" && g != "Female" {
-		return "Male"
-	}
-	return g
-}
-
 func (h *Handler) APIGetPatientsCategories(ctx *gin.Context) {
 	ageStr := ctx.Query("age")
 
@@ -74,7 +67,7 @@ func (h *Handler) APIGetPatientsCategories(ctx *gin.Context) {
 		likes = map[int]int{}
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategories(services, likes, user.Get().ID))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategoriesTiles(services, likes, user.Get().ID))
 }
 
 func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
@@ -154,7 +147,7 @@ func (h *Handler) APICreatePatientsCategorie(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, ds.SerializePatientsCategorie(*updated, 0, user.Get().ID))
+	ctx.JSON(http.StatusCreated, ds.SerializePatientsCategorie(*updated, 0))
 }
 
 // GET /api/patients_categories/draft — черновик текущего пользователя (id не указывается)
@@ -165,7 +158,7 @@ func (h *Handler) APIGetDraft(ctx *gin.Context) {
 		return
 	}
 	if draft == nil {
-		ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(ds.PatientsCategorie{}, 0, user.Get().ID))
+		ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(ds.PatientsCategorie{}, 0))
 		return
 	}
 
@@ -174,7 +167,7 @@ func (h *Handler) APIGetDraft(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(*draft, likes, user.Get().ID))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(*draft, likes))
 }
 
 // GET /api/patients_categories/feed — лента: без id (первая) или ?id=X&next=true
@@ -213,11 +206,17 @@ func (h *Handler) APIFeed(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(calc, likes, user.Get().ID))
+	liked, err := h.Repository.IsLiked(calc.ID, user.Get().ID)
+	isLiked := 0
+	if err == nil && liked {
+		isLiked = 1
+	}
+
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorieFeed(calc, likes, isLiked))
 }
 
 // PUT /api/patients_categories/:id/publish — добавляет описание/параметры и переводит draft -> published
-// Модель публикации: Description · Age · Gender / Weight · Height
+// Модель публикации: Description · Age · Weight
 func (h *Handler) APIPublish(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -228,9 +227,7 @@ func (h *Handler) APIPublish(ctx *gin.Context) {
 	var req struct {
 		Description string  `json:"description"`
 		Age         int     `json:"age"`
-		Gender      string  `json:"gender"`
 		Weight      float64 `json:"weight"`
-		Height      int     `json:"height"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.Status(http.StatusBadRequest)
@@ -242,19 +239,13 @@ func (h *Handler) APIPublish(ctx *gin.Context) {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
-	gender := defaultGender(req.Gender)
 	weight := req.Weight
 	if weight < 0 {
 		ctx.Status(http.StatusBadRequest)
 		return
 	}
-	height := req.Height
-	if height < 1 {
-		ctx.Status(http.StatusBadRequest)
-		return
-	}
 
-	if err := h.Repository.UpdateAndPublishDraft(uint(id), req.Description, age, gender, weight, height); err != nil {
+	if err := h.Repository.UpdateAndPublishDraft(uint(id), req.Description, age, weight); err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			ctx.Status(http.StatusNotFound)
 			return
@@ -274,7 +265,7 @@ func (h *Handler) APIPublish(ctx *gin.Context) {
 		likes = 0
 	}
 
-	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(pc, likes, user.Get().ID))
+	ctx.JSON(http.StatusOK, ds.SerializePatientsCategorie(pc, likes))
 }
 
 // DELETE /api/patients_categories/:id — soft delete

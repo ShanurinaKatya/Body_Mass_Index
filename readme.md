@@ -37,7 +37,7 @@ DELETE удаление (только soft delete). Только услуги э
 Ответ — JSON самого ресурса, без обёртки: код состояния передаётся HTTP-статусом,
 тело при ошибке пустое. Текущий пользователь — константа singleton `user.Get()` (`admin`, id = 1).
 
-1. `GET /api/patients_categories` — список опубликованных услуг, фильтрация по возрасту `?age=N`.
+1. `GET /api/patients_categories` — плитка: список опубликованных услуг с признаком `is_creator`, фильтрация по возрасту `?age=N`.
    Тело запроса: нет. Успех: `200` + массив услуг. Ошибки: `400` — некорректный `age`.
 2. `POST /api/patients_categories` — создать черновик услуги с файлами изображения и видео.
    Тело запроса: `multipart/form-data` с полями `name`, `image`, `video`.
@@ -45,9 +45,9 @@ DELETE удаление (только soft delete). Только услуги э
 3. `GET /api/patients_categories/draft` — черновик текущего пользователя, id не указывается (не более 1 записи).
    Тело запроса: нет. Успех: `200` + услуга.
 4. `PUT /api/patients_categories/:id/publish` — публикация черновика, статус `draft` → `published`.
-   Тело запроса: JSON с полями `description`, `age`, `gender`, `weight`, `height`.
+   Тело запроса: JSON с полями `description`, `age`, `weight`.
    Успех: `200` + услуга. Ошибки: `400` — невалидные параметры или услуга уже не черновик, `404` — услуги нет.
-5. `GET /api/patients_categories/feed` — лента опубликованных услуг: без параметров первая, `?id=X&next=true` — следующая после `X`.
+5. `GET /api/patients_categories/feed` — лента опубликованных услуг с признаком `is_liked`: без параметров первая, `?id=X&next=true` — следующая после `X`.
    Тело запроса: нет. Успех: `200` + услуга. Ошибки: `400` — некорректный `id`.
 6. `POST /api/patients_categories/:id/like` — лайк от текущего пользователя: `1` поставить, `0` снять.
    Тело запроса: JSON `{"like": 1}` или `{"like": 0}`.
@@ -68,18 +68,23 @@ DELETE удаление (только soft delete). Только услуги э
 
 ```
 id · name · description · age
-gender · weight · height · image_url
-video_url · likes · is_creator
-created_at · updated_at · creator
+weight · image_url · video_url
+likes · creator_id
+created_at · updated_at
 ```
 
-- `is_creator` — `1`, если услуга создана текущим пользователем, иначе `0`.
-- `creator` — вложенный объект пользователя: `id`, `username`, `is_moderator`.
+- `creator_id` — id создателя услуги, единственное поле пользователя в модели услуги: вложенного объекта нет.
 - `likes` — количество лайков; в таблице не хранится, считается при сериализации.
-- `status` и `user_id` клиенту не передаются: статус услуги и её создатель — системные поля.
+- `status` и `user_id` клиенту не передаются: статус услуги — системное поле, вместо `user_id` отдаётся `creator_id`.
+
+Эта базовая модель возвращается в ответах создания, черновика и публикации. Ещё два признака
+добавляются только в своих запросах и в остальных ответах отсутствуют:
+
+- `is_creator` — только в плитке (`GET /api/patients_categories`): `1`, если услуга создана текущим пользователем, иначе `0`.
+- `is_liked` — только в ленте (`GET /api/patients_categories/feed`): `1`, если текущий пользователь лайкнул эту услугу, иначе `0` (вычисляется по таблице `likes`).
 
 Создание услуги двухступенчатое: `POST` создаёт черновик (`name`, `image_url`, `video_url`,
-остальные поля пустые), `PUT .../publish` заполняет `description`, `age`, `gender`, `weight`, `height`
+остальные поля пустые), `PUT .../publish` заполняет `description`, `age`, `weight`
 и переводит услугу в `published`. Вернуть услугу из `published` в `draft` нельзя.
 
 ## Таблицы БД
@@ -95,12 +100,10 @@ created_at · updated_at · creator
 - `image_url` — `varchar(255)`, `not null`, по умолчанию `/static/image/default.jpg`, ссылка на файл в MinIO. В JSON: `image_url`
 - `video_url` — `varchar(255)`, `not null`, по умолчанию `/static/image/Default.mp4`, ссылка на файл в MinIO. В JSON: `video_url`
 - `age` — `bigint`. В JSON: `age`
-- `gender` — `varchar(10)`, CHECK `gender_in` (`Male`, `Female`, пустая строка). В JSON: `gender`
 - `weight` — `numeric(5,2)`. В JSON: `weight`
-- `height` — `bigint`. В JSON: `height`
 - `created_at` — `timestamptz`, по умолчанию `now()`. В JSON: `created_at`
 - `updated_at` — `timestamptz`, по умолчанию `now()`, меняется при публикации и удалении. В JSON: `updated_at`
-- `user_id` — `bigint`, `not null`, индекс, внешний ключ на `users(id)`. В JSON не передаётся, вместо него вычисляются `is_creator` и `creator`
+- `user_id` — `bigint`, `not null`, индекс, внешний ключ на `users(id)`. В JSON не передаётся, вместо него отдаются `creator_id` и вычисляется `is_creator`
 
 Файлы изображений и видео хранятся в MinIO в бакете `body-mass-index` с именами
 `pc_<id>_img.<ext>` и `pc_<id>_video.<ext>`; в БД сохраняются только ссылки на них.
@@ -120,7 +123,6 @@ created_at · updated_at · creator
 - `id` — `bigint`, первичный ключ, автоинкремент. В JSON: `id`
 - `username` — `varchar(50)`, `not null`, `unique`. В JSON: `username`
 - `password_hash` — `varchar(255)`, `not null`. Клиенту не передаётся
-- `is_moderator` — `boolean`, по умолчанию `false`. В JSON: `is_moderator`
 
 Поле `password_hash` клиенту не отдаётся (`json:"-"`). В этой лабораторной авторизация — заглушка,
 поэтому пароль сохраняется в том виде, в каком пришёл, а хэширование выполняется в лабораторной 4.
