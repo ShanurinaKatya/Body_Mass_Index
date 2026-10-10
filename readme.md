@@ -103,7 +103,7 @@ created_at · updated_at
 - `weight` — `numeric(5,2)`. В JSON: `weight`
 - `created_at` — `timestamptz`, по умолчанию `now()`. В JSON: `created_at`
 - `updated_at` — `timestamptz`, по умолчанию `now()`, меняется при публикации и удалении. В JSON: `updated_at`
-- `user_id` — `bigint`, `not null`, индекс, внешний ключ на `users(id)`. В JSON не передаётся, вместо него отдаются `creator_id` и вычисляется `is_creator`
+- `user_id` — `bigint`, `not null`, индекс, внешний ключ на `users(id)`. В JSON не передаётся, вместо него отдаётся `creator_id`, а `is_creator` — только в плитке
 
 Файлы изображений и видео хранятся в MinIO в бакете `body-mass-index` с именами
 `pc_<id>_img.<ext>` и `pc_<id>_video.<ext>`; в БД сохраняются только ссылки на них.
