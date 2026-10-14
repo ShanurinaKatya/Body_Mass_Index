@@ -1,6 +1,10 @@
 package ds
 
-import "time"
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+)
 
 type User struct {
 	ID           uint   `gorm:"primaryKey" json:"id"`
@@ -115,4 +119,11 @@ func SerializePatientsCategorieFeed(pc PatientsCategorie, likes, isLiked int) Pa
 		PatientsCategoriesSerializer: SerializePatientsCategorie(pc, likes),
 		IsLiked:                      isLiked,
 	}
+}
+
+// JWTClaims — полезная нагрузка токена: стандартные поля по RFC 7519
+// плюс идентификатор пользователя, который положил его в токен.
+type JWTClaims struct {
+	jwt.StandardClaims
+	UserID uint `json:"user_id"`
 }

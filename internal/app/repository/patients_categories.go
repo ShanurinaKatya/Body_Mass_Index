@@ -126,7 +126,7 @@ func (r *Repository) CreateCategoryDraft(c ds.PatientsCategorie) (ds.PatientsCat
 	return c, err
 }
 
-func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int, weight float64) error {
+func (r *Repository) UpdateAndPublishDraft(id, userID uint, description string, age int, weight float64) error {
 	var calc ds.PatientsCategorie
 	err := r.db.Where("id = ?", id).First(&calc).Error
 	if err != nil {
@@ -134,6 +134,9 @@ func (r *Repository) UpdateAndPublishDraft(id uint, description string, age int,
 			return fmt.Errorf("%w: category %d", ErrNotFound, id)
 		}
 		return err
+	}
+	if calc.UserID != userID {
+		return fmt.Errorf("%w: category %d", ErrForbidden, id)
 	}
 	if calc.Status != DraftStatus {
 		return fmt.Errorf("category %d is not a draft, cannot publish", id)

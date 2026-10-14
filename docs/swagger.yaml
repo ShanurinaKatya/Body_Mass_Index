@@ -1,0 +1,494 @@
+basePath: /api
+definitions:
+  ds.PatientsCategoriesFeedSerializer:
+    properties:
+      age:
+        type: integer
+      created_at:
+        type: string
+      creator_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      image_url:
+        type: string
+      is_liked:
+        type: integer
+      likes:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+      video_url:
+        type: string
+      weight:
+        type: number
+    type: object
+  ds.PatientsCategoriesSerializer:
+    properties:
+      age:
+        type: integer
+      created_at:
+        type: string
+      creator_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      image_url:
+        type: string
+      likes:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+      video_url:
+        type: string
+      weight:
+        type: number
+    type: object
+  ds.PatientsCategoriesTileSerializer:
+    properties:
+      age:
+        type: integer
+      created_at:
+        type: string
+      creator_id:
+        type: integer
+      description:
+        type: string
+      id:
+        type: integer
+      image_url:
+        type: string
+      is_creator:
+        type: integer
+      likes:
+        type: integer
+      name:
+        type: string
+      updated_at:
+        type: string
+      video_url:
+        type: string
+      weight:
+        type: number
+    type: object
+  ds.UserSerializer:
+    properties:
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  handler.LikeRequest:
+    properties:
+      like:
+        type: integer
+    type: object
+  handler.LikeResponse:
+    properties:
+      id:
+        type: integer
+      likes:
+        type: integer
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  handler.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      token_type:
+        type: string
+    type: object
+  handler.PublishRequest:
+    properties:
+      age:
+        type: integer
+      description:
+        type: string
+      weight:
+        type: number
+    type: object
+  handler.RegisterRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Веб-сервис услуг. Без авторизации доступно только чтение данных
+  title: Body Mass Index API
+  version: "1.0"
+paths:
+  /patients_categories:
+    get:
+      description: Список опубликованных услуг с признаком is_creator; фильтр по возрасту
+        ?age=N
+      parameters:
+      - description: возраст для фильтрации
+        in: query
+        name: age
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/ds.PatientsCategoriesTileSerializer'
+            type: array
+        "400":
+          description: некорректный age
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      summary: Плитка опубликованных услуг
+      tags:
+      - patients_categories
+    post:
+      consumes:
+      - multipart/form-data
+      description: Создаёт черновик с файлами изображения и видео; создатель берётся
+        из JWT
+      parameters:
+      - description: название услуги
+        in: formData
+        name: name
+        required: true
+        type: string
+      - description: изображение
+        in: formData
+        name: image
+        type: file
+      - description: короткое видео
+        in: formData
+        name: video
+        type: file
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ds.PatientsCategoriesSerializer'
+        "400":
+          description: некорректные данные или файл
+          schema:
+            type: string
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "409":
+          description: у пользователя уже есть черновик
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Создать черновик услуги
+      tags:
+      - patients_categories
+  /patients_categories/{id}:
+    delete:
+      description: 'Soft delete: статус меняется на deleted; только услуги этого пользователя'
+      parameters:
+      - description: id услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: успех
+          schema:
+            type: string
+        "400":
+          description: некорректный id
+          schema:
+            type: string
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "403":
+          description: услуга другого пользователя
+          schema:
+            type: string
+        "404":
+          description: услуги нет
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Удалить услугу
+      tags:
+      - patients_categories
+  /patients_categories/{id}/like:
+    post:
+      consumes:
+      - application/json
+      description: 'Поле like: 1 ставит лайк, 0 снимает; лайк от текущего пользователя'
+      parameters:
+      - description: id услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 1 или 0
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LikeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.LikeResponse'
+        "400":
+          description: некорректный id или значение like
+          schema:
+            type: string
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Поставить/снять лайк
+      tags:
+      - patients_categories
+  /patients_categories/{id}/publish:
+    put:
+      consumes:
+      - application/json
+      description: Заполняет description, age, weight и переводит статус draft ->
+        published; только создатель услуги
+      parameters:
+      - description: id услуги
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: описание и параметры
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.PublishRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ds.PatientsCategoriesSerializer'
+        "400":
+          description: некорректные данные или услуга не черновик
+          schema:
+            type: string
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "403":
+          description: услуга другого пользователя
+          schema:
+            type: string
+        "404":
+          description: услуги нет
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Опубликовать черновик услуги
+      tags:
+      - patients_categories
+  /patients_categories/draft:
+    get:
+      description: Черновик пользователя из JWT, id не указывается (не более 1 записи)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ds.PatientsCategoriesSerializer'
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Получить черновик текущего пользователя
+      tags:
+      - patients_categories
+  /patients_categories/feed:
+    get:
+      description: Первая услуга или следующая после id при ?id=X&next=true; признак
+        is_liked
+      parameters:
+      - description: id услуги
+        in: query
+        name: id
+        type: integer
+      - description: получить следующую услугу
+        in: query
+        name: next
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ds.PatientsCategoriesFeedSerializer'
+        "400":
+          description: некорректный id
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      summary: Лента опубликованных услуг
+      tags:
+      - patients_categories
+  /users/auth:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет логин и пароль, возвращает JWT
+      parameters:
+      - description: логин и пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: некорректные данные
+          schema:
+            type: string
+        "401":
+          description: неверный логин или пароль
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      summary: Аутентификация
+      tags:
+      - users
+  /users/logout:
+    post:
+      description: Кладёт текущий токен в чёрный список Redis до истечения его срока
+      responses:
+        "200":
+          description: успех
+          schema:
+            type: string
+        "401":
+          description: нет или неверный токен
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Деавторизация
+      tags:
+      - users
+  /users/register:
+    post:
+      consumes:
+      - application/json
+      description: Создаёт нового пользователя, пароль сохраняется в виде sha1-хэша
+      parameters:
+      - description: логин и пароль
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/ds.UserSerializer'
+        "400":
+          description: некорректные данные
+          schema:
+            type: string
+        "409":
+          description: логин уже занят
+          schema:
+            type: string
+        "500":
+          description: внутренняя ошибка
+          schema:
+            type: string
+      summary: Регистрация пользователя
+      tags:
+      - users
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

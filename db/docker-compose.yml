@@ -19,5 +19,16 @@ services:
     depends_on:
       - postgres
 
+  redis:
+    container_name: body_mass_index_redis
+    image: redis:6.2-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --save 20 1 --loglevel warning --requirepass password
+    volumes:
+      - redis-data:/data
+
 volumes:
   postgres-data:
+  redis-data:
