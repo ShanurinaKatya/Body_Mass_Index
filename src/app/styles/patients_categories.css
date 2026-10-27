@@ -699,30 +699,6 @@ body {
     color: #333333;
 }
 
-/* ===== CARD DELETE (button like filter, bottom) ===== */
-.card-delete {
-    margin: 0;
-    padding: 0 var(--spacing-12) var(--spacing-12);
-}
-
-.card-delete-btn {
-    width: 100%;
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--accent-primary);
-    color: #ffffff;
-    font-size: var(--font-size-body-default);
-    font-weight: var(--font-weight-body-default-bold);
-    font-family: var(--font-family-body-default);
-    cursor: pointer;
-    padding: 12px 24px;
-    transition: opacity 0.2s;
-}
-
-.card-delete-btn:hover {
-    opacity: 0.85;
-}
-
 /* ===== LAB 2: ADD SUBMIT / STATIC PREVIEWS ===== */
 .add-placeholder-text {
     position: relative;

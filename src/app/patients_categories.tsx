@@ -5,8 +5,9 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-rou
 import 'bootstrap/dist/css/bootstrap.min.css'
 import './styles/patients_categories.css'
 
-import { TabBar } from './components/patients_categories'
-import { FeedPage, TilePage } from './pages/patients_categories'
+import { TabBar } from '../widgets/tab-bar/patients_categories'
+import { FeedPage } from '../pages/feed/patients_categories'
+import { TilePage } from '../pages/cards/patients_categories'
 
 const AppLayout = () => (
   <>

@@ -1,8 +1,3 @@
-export const ROUTES = {
-  FEED: '/feed',
-  TILE: '/cards',
-} as const
-
 export interface PatientsCategorie {
   id: number
   name: string
