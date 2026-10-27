@@ -386,6 +386,18 @@ body {
     opacity: 0.85;
 }
 
+/* React-Bootstrap: состояния кнопки остаются красными (перекрываем .btn:hover) */
+.cards-filter-btn:hover,
+.cards-filter-btn:focus,
+.cards-filter-btn:active {
+    background-color: var(--accent-primary) !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none;
+    color: #ffffff !important;
+    opacity: 0.85;
+}
+
 .cards-filter-label {
     display: block;
     font-size: var(--font-size-body-default);
@@ -741,3 +753,35 @@ body {
 .add-submit-btn:hover {
     opacity: 0.85;
 }
+
+/* ===== LAB 5: React-приложение (надстройки над стилями лабы 1) ===== */
+body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Неактивные пункты нижней панели (Добавление, Вход) */
+.tab-item--disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    cursor: default;
+    color: var(--text-tertiary);
+}
+
+/* Раскрытая описания карточки в ленте (кнопка «ещё/меньше») */
+.feed-description-expanded {
+    -webkit-line-clamp: unset;
+    display: -webkit-box;
+}
+
+.feed-sidebar-item--clickable {
+    cursor: pointer;
+}
+
+/* Bootstrap-обёртки React-Bootstrap должны выглядеть как карточки лабы 1 */
+.card {
+    border: none;
+    cursor: pointer;
+}
+
