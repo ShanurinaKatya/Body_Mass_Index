@@ -1,0 +1,758 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Веб-сервис услуг. Без авторизации доступно только чтение данных",
+        "title": "Body Mass Index API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/patients_categories": {
+            "get": {
+                "description": "Список опубликованных услуг с признаком is_creator; фильтр по возрасту ?age=N",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Плитка опубликованных услуг",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "возраст для фильтрации",
+                        "name": "age",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/ds.PatientsCategoriesTileSerializer"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "некорректный age",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Создаёт черновик с файлами изображения и видео; создатель берётся из JWT",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Создать черновик услуги",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "название услуги",
+                        "name": "name",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "изображение",
+                        "name": "image",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "file",
+                        "description": "короткое видео",
+                        "name": "video",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ds.PatientsCategoriesSerializer"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректные данные или файл",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "у пользователя уже есть черновик",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/patients_categories/draft": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Черновик пользователя из JWT, id не указывается (не более 1 записи)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Получить черновик текущего пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ds.PatientsCategoriesSerializer"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/patients_categories/feed": {
+            "get": {
+                "description": "Первая услуга или следующая после id при ?id=X\u0026next=true; признак is_liked",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Лента опубликованных услуг",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id услуги",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "получить следующую услугу",
+                        "name": "next",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ds.PatientsCategoriesFeedSerializer"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректный id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/patients_categories/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft delete: статус меняется на deleted; только услуги этого пользователя",
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Удалить услугу",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id услуги",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "успех",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректный id",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "услуга другого пользователя",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "услуги нет",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/patients_categories/{id}/like": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Поле like: 1 ставит лайк, 0 снимает; лайк от текущего пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Поставить/снять лайк",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id услуги",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "1 или 0",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LikeRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.LikeResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректный id или значение like",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/patients_categories/{id}/publish": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Заполняет description, age, weight и переводит статус draft -\u003e published; только создатель услуги",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "patients_categories"
+                ],
+                "summary": "Опубликовать черновик услуги",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "id услуги",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "описание и параметры",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.PublishRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ds.PatientsCategoriesSerializer"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректные данные или услуга не черновик",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "услуга другого пользователя",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "услуги нет",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/auth": {
+            "post": {
+                "description": "Проверяет логин и пароль, возвращает JWT",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Аутентификация",
+                "parameters": [
+                    {
+                        "description": "логин и пароль",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректные данные",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "неверный логин или пароль",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/logout": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Кладёт текущий токен в чёрный список Redis до истечения его срока",
+                "tags": [
+                    "users"
+                ],
+                "summary": "Деавторизация",
+                "responses": {
+                    "200": {
+                        "description": "успех",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "нет или неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/register": {
+            "post": {
+                "description": "Создаёт нового пользователя, пароль сохраняется в виде sha1-хэша",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "users"
+                ],
+                "summary": "Регистрация пользователя",
+                "parameters": [
+                    {
+                        "description": "логин и пароль",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handler.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/ds.UserSerializer"
+                        }
+                    },
+                    "400": {
+                        "description": "некорректные данные",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "409": {
+                        "description": "логин уже занят",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "внутренняя ошибка",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "ds.PatientsCategoriesFeedSerializer": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "creator_id": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_liked": {
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "video_url": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "ds.PatientsCategoriesSerializer": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "creator_id": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "video_url": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "ds.PatientsCategoriesTileSerializer": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "creator_id": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "image_url": {
+                    "type": "string"
+                },
+                "is_creator": {
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "video_url": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "ds.UserSerializer": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.LikeRequest": {
+            "type": "object",
+            "properties": {
+                "like": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.LikeResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "likes": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handler.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "token_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "handler.PublishRequest": {
+            "type": "object",
+            "properties": {
+                "age": {
+                    "type": "integer"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "weight": {
+                    "type": "number"
+                }
+            }
+        },
+        "handler.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

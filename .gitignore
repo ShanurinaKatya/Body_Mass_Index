@@ -1,4 +1,5 @@
 .env
+backend/.env
 
 # Logs
 logs
@@ -13,6 +14,12 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
+
+# Go
+backend/bin
+backend/patients_categories
+backend/migrate
 
 # Editor directories and files
 .vscode/*

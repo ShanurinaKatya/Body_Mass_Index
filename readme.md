@@ -1,134 +1,171 @@
-# Лабораторная работа №5
+# Лабораторная работа №6. Завершение интерфейса пользователя в React
 
-- **Цель работы**: разработка базового SPA на React.
-- **Порядок показа**: скриншоты 1–3 — страницы фронтенда с mock и вкладкой Network; скриншоты 4–5 — реализация изображения по умолчанию; скриншоты 6–7 — код компонентов для фильтрации, передаваемые props; скриншоты 8–9 — все используемые хуки.
-- **Контрольные вопросы**: React, props и состояние, компонент и элемент, `useState` и `useEffect`, жизненный цикл компонента, Vite и Babel.
-- **Задание**: разработать страницы фронтенда приложения на React и TypeScript
+Веб-приложение «ИМТ Калькулятор»: SPA на React с менеджером состояний Redux Toolkit,
+авторизацией по JWT и взаимодействием с Go-веб-сервисом через кодогенерацию Swagger и Axios.
 
-Базовый интерфейс приложения для гостя аналогичен двум страницам лабораторной работы №1 — **лента** и **плитка**. Содержимое карточек получается только из коллекции mock-объектов, без подключения к бэкенду. Вёрстка выполнена компонентами React-Bootstrap. На странице плитки реализован фильтр по возрасту.
+## Структура репозитория
 
-Стек: React 19, TypeScript, Vite, React-Bootstrap.
+```
+.
+├── backend/    # Go-сервис услуг (Gin, GORM, PostgreSQL, Redis, MinIO, Swagger)
+├── frontend/   # React SPA (Vite, TypeScript, React-Bootstrap, Redux Toolkit)
+└── readme.md
+```
 
-```shell
+- `frontend/readme.md` — документация лабораторной работы №5 (FSD, mock-данные).
+- `backend/readme.md` — документация веб-сервиса (методы, авторизация, Swagger).
+
+## Стек
+
+- React 19, TypeScript, Vite 8
+- React-Bootstrap
+- Redux Toolkit, React Redux, Redux Thunk (встроен в Toolkit)
+- Axios
+- swagger-typescript-api (кодогенерация клиента)
+- Go (Gin, GORM, JWT, Redis, MinIO, PostgreSQL)
+
+## Запуск
+
+### 1. Бэкенд
+
+```bash
+cd backend
+
+# PostgreSQL, Redis, Adminer (:8081)
+docker compose -f db/docker-compose.yml up -d
+
+# MinIO (:9000, консоль :9001)
+docker compose -f minio/docker-compose.yml up -d
+
+# Создать в MinIO публичный на чтение бакет body-mass-index
+# (консоль http://localhost:9001, логин root / rootpassword)
+
+go run ./cmd/migrate
+go run ./cmd/patients_categories    # :8080
+```
+
+Swagger UI: http://localhost:8080/swagger/index.html
+
+### 2. Фронтенд
+
+```bash
+cd frontend
 npm install
-npm run dev   # http://localhost:3000
+npm run generate-api   # генерация src/shared/api/Api.ts из Swagger
+npm run dev            # http://localhost:3000
 ```
 
-## Нижняя навигационная панель
+Кодогенерация берёт спецификацию из `http://localhost:8080/swagger/doc.json`,
+а если сервис не запущен — из `backend/docs/swagger.json`.
 
-Панель закреплена внизу колонки приложения шириной 390 px и не прокручивается вместе с контентом. В неё входят **четыре пункта**, доступны только два:
+### Тестовые данные
 
-| Пункт | Доступен | Поведение |
-|-------|----------|-----------|
-| **Лента** | да | переход на `/feed`; подсвечивается, когда страница открыта |
-| **Добавление** | нет | серая неактивная кнопка, страница в этой лабораторной не реализуется |
-| **Плитка** | да | переход на `/cards`; подсвечивается, когда страница открыта |
-| **Вход** | нет | серая неактивная кнопка, авторизация не реализуется |
+После запуска сервиса создайте пользователя и несколько услуг:
 
-## Страница «Лента» — `/feed`
+```bash
+# Регистрация
+curl -X POST http://localhost:8080/api/users/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"123456"}'
 
-Полноэкранная карточка услуги в формате TikTok: видео на весь фон, текст поверх него.
+# Токен
+TOKEN=$(curl -s -X POST http://localhost:8080/api/users/auth \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"123456"}' | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 
-**Кнопки и поля:**
+# Черновик
+curl -X POST http://localhost:8080/api/patients_categories \
+  -H "Authorization: Bearer $TOKEN" -F 'name=ИМТ для школьников'
 
-- **Хедер** — заголовок приложения «ИМТ Калькулятор»;
-- **Иконка «Вес»** — вес текущей услуги в кг (`service.weight`);
-- **Иконка «Возраст»** — возраст в годах (`service.age`);
-- **Иконка «Лайк»** — количество лайков услуги (`service.likes`);
-- **Кнопка «Далее»** — показывает следующую услугу из mock-коллекции, список зациклен;
-- **Заголовок** — название текущей услуги (`service.name`);
-- **Описание** — по умолчанию показывается одна строка;
-- **Кнопки «ещё» / «меньше»** — раскрывают описание целиком или сворачивают обратно.
-
-Если у услуги нет видео, подставляется `/Default.mp4`; при ошибке загрузки `onError` заменяет видео на дефолтное.
-
-## Страница «Плитка» — `/cards`
-
-Список услуг сеткой 2 колонки (по 2 карточки в ряду) под белым липким хедером.
-
-**Кнопки и поля:**
-
-- **Хедер** — заголовок «Каталог расчётов» и подзаголовок «Специализированные калькуляторы ИМТ»;
-- **Фильтр по возрасту** — ползунок (`range`) со шкалой 0–100 и «пузырьком» текущего значения;
-- **Кнопка «Найти»** — применяет фильтр. Значение **100** (по умолчанию) показывает все услуги, значение **0–99** — только те, у которых возраст ровно равен числу; если такого возраста нет, список пуст. Логика повторяет `GetPublishedByAge` из лабораторной работы №1 (`WHERE status = ? AND age = ?`);
-- **Карточка услуги** (компонент `ServiceCard`):
-  - изображение — при пустом `image_url` подставляется `/DefaultImage.jpg`, при ошибке загрузки то же значение задаёт `onError`;
-  - название услуги;
-  - количество лайков (иконка сердца);
-  - вес в кг и возраст в годах;
-- **Клик по карточке** — открывает эту услугу на странице «Лента» (`/feed?id=N`).
-
-## Используемые хуки
-
-- **`useState`** — индекс карточки в ленте, раскрытие описания, источник видео (`FeedPage`); текущее и применённое значение фильтра (`TilePage`);
-- **`useEffect`** — при смене карточки в ленте меняет источник видео и прокручивает страницу наверх;
-- **`useSearchParams`** — читает `id` из адреса `/feed?id=N` и открывает нужную услугу;
-- **`useNavigate`** — переход со страницы «Плитка» на «Лента» по клику по карточке.
-
-## Структура проекта (FSD)
-
-Проект разложен по слоям Feature-Sliced Design. Слой может зависеть только от слоёв ниже себя, соседние слои друг о друга не знают:
-
-| Слой | Назначение | Содержимое |
-|------|-----------|------------|
-| `app/` | точка входа, роутер, оболочка приложения, глобальные стили | `app/patients_categories.tsx`, `app/styles/` |
-| `pages/` | композиция блоков в страницу | `pages/feed/`, `pages/cards/` |
-| `widgets/` | собранный блок с содержимым и кнопками | `widgets/tab-bar/` — нижняя панель |
-| `features/` | интерактив и логика его обработки | `features/filter/`, `features/next-service/`, `features/toggle-description/` |
-| `entities/` | скелет бизнес-сущности со слотами под интерактив | `entities/service/` — карточка услуги |
-| `shared/` | технический слой: конфиг и модель данных | `shared/config/`, `shared/model/` |
-
-```text
-/
-├── index.html                             страница-оболочка, шрифт Manrope
-├── vite.config.ts                         dev-сервер на порту 3000, strictPort
-├── public/
-│   ├── Default.mp4                        видео по умолчанию
-│   ├── DefaultImage.jpg                   изображение по умолчанию
-│   └── free-icon-weight.png               иконка «Вес»
-└── src/
-    ├── app/
-    │   ├── patients_categories.tsx        точка входа, роутер, AppLayout
-    │   └── styles/patients_categories.css стили лабораторной работы №1
-    ├── pages/
-    │   ├── feed/patients_categories.tsx   FeedPage
-    │   └── cards/patients_categories.tsx  TilePage
-    ├── widgets/
-    │   └── tab-bar/patients_categories.tsx  TabBar — 4 пункта
-    ├── features/
-    │   ├── filter/patients_categories.tsx           слайдер и кнопка «Найти»
-    │   ├── next-service/patients_categories.tsx     кнопка «Далее»
-    │   └── toggle-description/patients_categories.tsx  кнопки «ещё» / «меньше»
-    ├── entities/
-    │   └── service/patients_categories.tsx  карточка услуги
-    └── shared/
-        ├── config/patients_categories.ts    маршруты
-        └── model/patients_categories.ts     тип услуги и mock-коллекция
+# Публикация (id из ответа предыдущего запроса)
+curl -X PUT http://localhost:8080/api/patients_categories/1/publish \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"description":"Расчёт ИМТ для школьников","age":15,"weight":55}'
 ```
 
-Все файлы названы по единому требованию курса — `patients_categories`, по одному на папку.
+## Обратный прокси (CORS)
 
-### Передаваемые props
+В `frontend/vite.config.ts` настроены два маршрута:
 
-Пример для скриншотов 6–7 — фильтр. `TilePage` хранит состояние и передаёт его в компонент фильтра вместе с функциями обратного вызова, сам компонент состояния не имеет (управляемый):
+| Маршрут | Куда | Назначение |
+|---|---|---|
+| `/api` | `http://localhost:8080` | методы веб-сервиса |
+| `/s3` | `http://localhost:9000/body-mass-index` | изображения и видео из MinIO |
 
-```tsx
-<AgeFilter age={age} onChange={setAge} onApply={handleFilter} />
+Браузер обращается только к `localhost:3000`, поэтому ограничение CORS не возникает.
+Адреса объектов MinIO (`http://localhost:9000/body-mass-index/...`) на фронтенде
+переписываются в `/s3/...` функцией `toMediaUrl`.
+
+## Redux Toolkit
+
+`frontend/src/app/store/patients_categories.ts`:
+
+```
+store
+├── services  (entities/service/model)
+│   ├── tiles, feed, draft
+│   ├── loading, error, usingMock
+│   └── thunks: fetchTiles, fetchFeed, fetchDraft,
+│              createService, publishService, deleteService, likeService
+├── filter    (features/filter/model)
+│   └── age (100 — все услуги, 0–99 — точное совпадение)
+└── user      (entities/user/model)
+    └── username, isAuthenticated, loading, error
 ```
 
-```tsx
-interface AgeFilterProps {
-  age: number
-  onChange: (age: number) => void
-  onApply: () => void
-}
+- Для методов услуг используются `createAsyncThunk` и сгенерированный клиент `api.*`.
+- Авторизация и деавторизация выполняются **вручную через axios**, без кодогенерации
+  и thunk: после ответа состояние в Redux устанавливается обычными action.
+- Redux DevTools включён (`devTools: true`).
+
+## Авторизация и хранение JWT
+
+- JWT сохраняется в `localStorage` под ключом `patients_categories.jwt`.
+- Axios-interceptor подставляет `Authorization: Bearer <token>` во все запросы.
+- Redux в память не сохраняется: после F5 интерфейс возвращается в состояние гостя,
+  а JWT остаётся в `Application → Local Storage`.
+- При выходе JWT удаляется, состояние пользователя очищается, фильтр сбрасывается.
+
+## Mock-данные
+
+Если бэкенд недоступен **и** пользователь не авторизован, thunk'и подставляют
+коллекцию `SERVICES_MOCK` (`frontend/src/shared/model/patients_categories.ts`).
+Для авторизованного пользователя ошибка выводится на страницу.
+
+## Страницы
+
+| Маршрут | Назначение | Доступ |
+|---|---|---|
+| `/feed` | лента услуг, «Далее», лайк | все |
+| `/cards` | плитка, фильтр по возрасту, удаление своих услуг | все |
+| `/add` | создание черновика и публикация услуги | авторизованные |
+| `/login` | вход по логину и паролю | гости |
+
+Панель навигации: «Лента», «Добавление», «Плитка», «Вход» / «Выход».
+
+## Порядок показа (скриншоты)
+
+1. **1–2** — `/feed` и `/cards` без запущенного сервиса (mock, режим гостя).
+2. **3–6** — `/feed`, `/cards`, `/add`, `/login` с запущенным бэкендом.
+3. **7–8** — изменение записи в БД через Adminer и отображение изменений во фронтенде.
+4. **9** — вход, F5: Redux снова гость, JWT остаётся в Local Storage.
+5. **10** — JWT из Application используется в Insomnia/Postman:
+   `GET /api/patients_categories` с `Authorization: Bearer <token>`;
+   у своих услуг `is_creator = 1`.
+6. **11–12** — состояния Redux в DevTools и axios в сгенерированном `Api.ts`.
+7. **13–14** — thunk'и на сгенерированном клиенте с тематическими именами.
+8. **15–16** — Network: запросы `/api/...` через прокси и `/s3/...` к MinIO.
+
+## Проверки
+
+```bash
+cd frontend
+npm run generate-api
+npm run lint
+npm run build
 ```
 
-## Медиа по умолчанию
+## Диаграмма прецедентов
 
-Во всех карточках mock-коллекции поля `image_url` и `video_url` пустые, поэтому подставляются файлы самого проекта из `public/`:
-
-- изображение — `/DefaultImage.jpg`;
-- видео — `/Default.mp4`.
-
-Если ссылка окажется битой, `onError` в компоненте заменит её тем же дефолтным файлом (`ServiceCard`, `FeedPage`). Сетевых запросов к сторонним сервисам нет.
+Исходник PlantUML: `docs/patients_categories.puml`.
